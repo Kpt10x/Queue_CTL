@@ -1,6 +1,6 @@
 import argparse
-import json,sys
-import sqlite3
+from concurrent.futures.thread import _worker
+import json,sys,sqlite3,time,math
 from datetime import datetime
 from database import get_connection, init_database, now_iso
 
@@ -66,12 +66,22 @@ def build_parser():
     pe.add_argument("--file", "-f", help="Path to JSON file containing the job definition")
     pe.set_defaults(func=cmd_enqueue)
     
+    # in built worker command
+    pw= sub.add_parser("worker", help="Start a worker to process jobs")
+    pw_sub= pw.add_subparsers(dest="worker_command", required=True)
+    pws= pw_sub.add_parser("start", help="Start the worker (foreground)")
+    pws.set_defaults(func=cmd_worker_start)
+    
     #list command
     pl= sub.add_parser("list", help="List jobs in the queue")
     pl.add_argument("--state", choices=["pending","processing","completed","failed","dead"], help="Filter jobs by state")
     pl.set_defaults(func=cmd_list)
     
     return p
+
+def cmd_worker_start(args):
+    run_worker()
+
 def main():
     parser= build_parser()
     args= parser.parse_args()
