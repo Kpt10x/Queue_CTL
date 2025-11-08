@@ -1,0 +1,6 @@
+{
+    "id": "job1",
+    "command": "sleep 2",
+    "max_retries": 3
+  }
+  
