@@ -78,10 +78,67 @@ def build_parser():
     pl.add_argument("--state", choices=["pending","processing","completed","failed","dead"], help="Filter jobs by state")
     pl.set_defaults(func=cmd_list)
     
+    #queuectl status
+    ps = sub.add_parser("status", help="Show job counts by state")
+    ps.set_defaults(func=cmd_status)
+
+    # DLQ parent command
+    pdlq = sub.add_parser("dlq", help="Dead Letter Queue operations")
+    dlq_sub = pdlq.add_subparsers(dest="dlq_cmd", required=True)
+
+    # dlq list
+    pdlq_list = dlq_sub.add_parser("list", help="List all DLQ jobs")
+    pdlq_list.set_defaults(func=cmd_dlq_list)
+
+    # dlq retry
+    pdlq_retry = dlq_sub.add_parser("retry", help="Retry a DLQ job")
+    pdlq_retry.add_argument("job_id", help="Job ID to retry")
+    pdlq_retry.set_defaults(func=cmd_dlq_retry)
+
     return p
 
 def cmd_worker(args):
     run_worker(once=args.once)
+    
+def cmd_status(_args):
+    init_database()
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT state, COUNT(*) AS count FROM jobs GROUP BY state;"
+        ).fetchall()
+    out = [dict(r) for r in rows]
+    print(json.dumps(out, indent=2))
+    
+def cmd_dlq_list(_args):
+    init_database()
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT id, command, attempts, max_retries, updated_at FROM jobs WHERE state='dead' ORDER BY updated_at DESC;"
+        ).fetchall()
+    print(json.dumps([dict(r) for r in rows], indent=2))
+
+
+def cmd_dlq_retry(args):
+    job_id = args.job_id
+    init_database()
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT state FROM jobs WHERE id=?;", (job_id,)
+        ).fetchone()
+        if not row:
+            raise SystemExit(f"Job {job_id} does not exist.")
+        if row["state"] != "dead":
+            raise SystemExit(f"Job {job_id} is not in DLQ.")
+
+        conn.execute("""
+            UPDATE jobs
+            SET state='pending',
+                attempts=0,
+                updated_at=DATETIME('now'),
+                next_run_at=DATETIME('now')
+            WHERE id=?;
+        """, (job_id,))
+    print(f"Job {job_id} moved out of DLQ and reset to pending.")
 
 def main():
     parser= build_parser()
