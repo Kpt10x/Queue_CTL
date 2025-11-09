@@ -107,6 +107,5 @@ def run_worker(once: bool = False):
             else:
                 time.sleep(1.5)
     except KeyboardInterrupt:
-        print("\n[worker] received Ctrl+C, exiting gracefully")
-    finally:
-        pass  # nothing to clean up for now
+        print("[worker] shutdown")
+    
