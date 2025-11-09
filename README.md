@@ -1,200 +1,206 @@
-QueueCTL — Background Job Queue System (CLI-Based)
 
-QueueCTL is a lightweight, production-grade background job processing system implemented using Python and SQLite. It provides a command-line interface for job creation, worker execution, lifecycle management, retries with exponential backoff, and Dead Letter Queue (DLQ) operations.
+---
 
-The design prioritizes operational reliability, atomicity, and deterministic behavior.
+# README.md
 
-Architecture Overview
+```markdown
+# QueueCTL — Background Job Queue System (CLI-Based)
 
-System Components
+QueueCTL is a lightweight, CLI-driven background job queue system built using Python and SQLite.  
+It supports job enqueueing, worker execution, deterministic job claiming, retries with exponential backoff, and a Dead Letter Queue (DLQ).
 
-CLI Layer (queuectl.py): Handles all inbound user commands such as enqueueing jobs, listing queue states, worker operations, DLQ operations, and status reporting.
+---
 
-Worker Engine (worker.py): Executes background jobs. Ensures atomic job claiming, retry scheduling, exponential backoff, and complete state transitions.
+## Architecture Overview
 
-Storage Layer (database.py): SQLite-based storage providing durability, locking guarantees, and timestamp consistency.
+### System Components
 
-Atomic Job Claiming
+- **queuectl.py**  
+  Command-line entry point handling enqueue, list, status, worker operations, and DLQ commands.
 
-QueueCTL uses the following SQL pattern in a single transaction to ensure exclusive job access and prevent race conditions:
+- **worker.py**  
+  Executes background jobs, performs atomic job claiming, schedules retries, applies exponential backoff, and transitions job states.
 
--- Start a write-lock immediately
+- **database.py**  
+  SQLite storage layer providing durable persistence and timestamp consistency.
+
+---
+
+## Job Lifecycle
+
+```
+
+pending → processing → completed
+pending → processing → failed → retry → pending
+failed → dead (DLQ)
+
+````
+
+---
+
+## Database Schema
+
+```sql
+CREATE TABLE IF NOT EXISTS jobs (
+  id TEXT PRIMARY KEY,
+  command TEXT NOT NULL,
+  state TEXT NOT NULL,
+  attempts INTEGER NOT NULL,
+  max_retries INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  next_run_at TEXT NOT NULL
+);
+````
+
+---
+
+## Atomic Job Claiming
+
+QueueCTL uses a single-transaction SQL pattern:
+
+```sql
 BEGIN IMMEDIATE;
 
--- Find the next available job
-SELECT id, command, attempts, max_retries 
-FROM jobs 
-WHERE state = 'pending' AND next_run_at <= DATETIME('now')
+SELECT id, command, attempts, max_retries
+FROM jobs
+WHERE state = 'pending'
+  AND datetime(next_run_at) <= datetime('now')
 ORDER BY created_at
 LIMIT 1;
 
--- Immediately lock the selected job so no other worker can take it
-UPDATE jobs 
-SET state = 'processing', updated_at = DATETIME('now') 
+UPDATE jobs
+SET state = 'processing',
+    updated_at = datetime('now')
 WHERE id = ?;
 
--- End transaction
 COMMIT;
+```
 
+This prevents two workers from selecting the same job.
 
-This approach prevents duplicate execution even when multiple workers run in parallel.
+---
 
-Job Lifecycle State Machine
+## Retry and Exponential Backoff
 
-QueueCTL ensures deterministic state transitions with timestamps:
+```python
+delay_seconds = BACKOFF_BASE_SECONDS ** new_attempts
+```
 
-Success: pending → processing → completed
+Backoff is scheduled by updating:
 
-Retry: pending → processing → failed → pending (with future next_run_at)
+```sql
+next_run_at = datetime('now', '<delay_seconds> seconds')
+```
 
-DLQ: pending → processing → failed (at max retries) → dead
+Jobs exceeding `max_retries` are moved to the **DLQ**.
 
-Retry and Backoff Strategy
+---
 
-QueueCTL implements exponential backoff for failed jobs. The delay is calculated as:
+## Setup Instructions
 
-delay_seconds = base ^ attempts
+```bash
+python -m venv .venv
+.\.venv\Scripts\activate     # Windows
+pip install -r requirements.txt   # if applicable
+```
 
-The job's next_run_at timestamp is pushed into the future to ensure controlled, delayed retries without blocking the worker.
+The application uses only the Python standard library unless noted otherwise.
 
-Setup Instructions
+---
 
-1. Install Dependencies
+## Usage
 
-(Assuming a requirements.txt file is present. If not, list packages like pip install ...)
+### Enqueue a Job
 
-pip install -r requirements.txt
+```bash
+python queuectl.py enqueue --file job_ok.json
+```
 
+### List Jobs
 
-2. Initialize Database
-
-No manual setup required. The database file (queue.db) is created automatically in the local directory on first command execution.
-
-3. Verify Installation
-
-python queuectl.py status
-
-
-CLI Usage
-
-Enqueue a Job
-
-You can enqueue a job from a JSON file or a raw JSON string.
-
-From file:
-
-python queuectl.py enqueue --file job.json
-
-
-From string:
-
-python queuectl.py enqueue '{"id":"task1","command":"python -c \"print(42)\"","max_retries":3}'
-
-
-List Jobs
-
-List all jobs or filter by a specific state.
-
-# List all jobs
+```bash
 python queuectl.py list
-
-# List only pending jobs
 python queuectl.py list --state pending
+```
 
-# List completed or dead jobs
-python queuectl.py list --state completed
-python queuectl.py list --state dead
+### Run Worker
 
-
-Start Worker
-
-Start a worker to process jobs.
-
-Continuous mode (runs until Ctrl+C):
-
+```bash
 python queuectl.py worker start
-
-
-Single job mode (runs one job and exits):
-
 python queuectl.py worker start --once
+```
 
+### Status (jobs grouped by state)
 
-Get Queue Status
-
-Shows a summary of all jobs grouped by their state.
-
+```bash
 python queuectl.py status
+```
 
+### DLQ Operations
 
-DLQ (Dead Letter Queue) Operations
+List dead jobs:
 
-Manage jobs that have permanently failed.
-
-List all jobs in the DLQ:
-
+```bash
 python queuectl.py dlq list
+```
 
+Retry a DLQ job:
 
-Retry a specific job from the DLQ:
-(This resets its attempts and moves it back to pending)
+```bash
+python queuectl.py dlq retry job_fail
+```
 
-python queuectl.py dlq retry <job_id>
+---
 
+## Demo Script
 
-Example Scenarios
+Run the automated demo:
 
-Success Case
+```powershell
+powershell -ExecutionPolicy Bypass -File demo.ps1
+```
 
-# Enqueue a job that will succeed
-python queuectl.py enqueue '{"id":"ok_job","command":"echo Hello World"}'
+This sequence shows:
 
-# Run one worker job and exit
-python queuectl.py worker start --once
+* enqueue success job
+* enqueue failure job
+* worker success run
+* worker retry + DLQ
+* status
+* dlq list
+* dlq retry
+* worker once (retry run)
+## Demo Video
+[Click here to view the demo](https://drive.google.com/file/d/1oA1Fr6zpjqKCWjWhx1oyVG-EX0qTBcZM/view?usp=sharing)
 
-# Verify it completed
-python queuectl.py list --state completed
+---
 
+## Project Structure
 
-Retry & DLQ Case
+```
+QUEUE_CTL/
+├── queuectl.py
+├── worker.py
+├── database.py
+├── demo.ps1
+├── job_ok.json
+├── job_fail.json
+├── queue.db
+├── inspect_jobs.py
+├── fix_states.py
+└── README.md
+```
 
-# Enqueue a job that will fail (max_retries defaults to 3)
-python queuectl.py enqueue '{"id":"fail_job","command":"cmd /c exit 1"}'
+---
 
-# Run the worker and watch it retry (Ctrl+C to stop)
-python queuectl.py worker start
-# (You will see it attempt, fail, backoff 3s, fail, backoff 9s, fail...)
+## Conclusion
 
-# Verify it landed in the DLQ
-python queuectl.py dlq list
+QueueCTL delivers a complete, deterministic, and durable job-processing pipeline with:
 
+* Atomic job claiming
+* Retry and exponential backoff
+* Dead Letter Queue
+* Persistent local storage
+* Clean and testable CLI commands
 
-Retry DLQ Job
-
-# Retry the job that failed
-python queuectl.py dlq retry fail_job
-
-# Verify it's back in pending
-python queuectl.py list --state pending
-
-# This time, let's fix it (This is a conceptual step)
-# (In a real system, you might deploy a fix or change the job command)
-
-# Run the worker again
-python queuectl.py worker start --once
-# (Assuming it's fixed, it will now complete)
-
-
-Assumptions & Design Trade-offs
-
-SQLite: Chosen for its built-in nature, file-based persistence, and robust BEGIN IMMEDIATE locking guarantees, which are critical for safe concurrency.
-
-Single-threaded Worker: The worker loop is single-threaded for simplicity, but multi-worker support is enabled at the database level via atomic locking.
-
-Shell Execution: Jobs are executed via subprocess.run(shell=True) per the assignment's allowance for commands like echo 'Hello'.
-
-Minimal Dependencies: The project avoids external libraries for core logic (like argparse, sqlite3, subprocess) to ensure portability.
-
-Demo Video
-
-Click here for the QueueCTL Demo Video
