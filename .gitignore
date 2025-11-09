@@ -39,9 +39,12 @@ fix_states.py
 
 # === Temporary Test Files ===
 job.json
+job_ok.json
+job_fail.json
 *.tmp
 *.bak
 
 # === Python Build Directories ===
 build/
 dist/
+*.ps1
