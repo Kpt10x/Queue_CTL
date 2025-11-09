@@ -33,10 +33,6 @@ Thumbs.db
 *.out
 *.err
 
-# ===  Scripts ===
-
-
-
 # === Temporary Test Files ===
 job.json
 *.tmp
@@ -45,5 +41,5 @@ job.json
 # === Python Build Directories ===
 build/
 dist/
-*.ps1
+
 

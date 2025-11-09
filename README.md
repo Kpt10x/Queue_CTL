@@ -7,7 +7,7 @@
 **Submission Artifacts:** Public GitHub repo + README (this file) + demo video
 
 **Demo Video:**
-`[Watch the demo](https://drive.google.com/file/d/1oA1Fr6zpjqKCWjWhx1oyVG-EX0qTBcZM/view?usp=sharing)`
+[Click here to view the demo video](https://drive.google.com/file/d/1oA1Fr6zpjqKCWjWhx1oyVG-EX0qTBcZM/view?usp=sharing)
 
 ---
 
@@ -21,7 +21,7 @@ Build a CLI tool `queuectl` to enqueue jobs, run worker(s), auto-retry failures 
 
 * Enqueue and manage background jobs
 * Single worker loop with **atomic fetch** to avoid duplicates (scales to multi-worker)
-* Exponential backoff retries: `delay = base^attempts` (configurable)
+* Exponential backoff retries: `delay = base^attempts` 
 * Dead Letter Queue (DLQ) with `list` and `retry`
 * Persistent storage via SQLite (`queue.db`)
 * CLI: `enqueue`, `worker`, `list`, `status`, `dlq`
@@ -29,7 +29,7 @@ Build a CLI tool `queuectl` to enqueue jobs, run worker(s), auto-retry failures 
 
 ---
 
-## 📦 Job Specification
+##  Job Specification
 
 ```json
 {
@@ -49,7 +49,7 @@ Additional column used by the system:
 
 ---
 
-## 🧱 Architecture Overview
+##  Architecture Overview
 
 ### Data Model (SQLite: `queue.db`)
 
@@ -91,7 +91,7 @@ Additional column used by the system:
 
 ---
 
-## 🧰 Setup Instructions
+##  Setup Instructions
 
 ```bash
 # Create & activate venv
@@ -101,21 +101,20 @@ python -m venv .venv
 # macOS/Linux
 # source .venv/bin/activate
 
-# No third-party deps required for the core CLI
-# (If you use any, list them here and pip install)
+
 ```
 
-Initialize the database happens automatically on first use (via your init function). If you have a dedicated init command, list it here.
+
 
 ---
 
-## 🚀 Usage Examples
+##  Usage Examples
 
-> PowerShell quoting can be tricky. Prefer JSON files or here-strings for stability.
+
 
 ### 1) Enqueue
 
-**Using a file (recommended):**
+**Using a file :**
 
 `job_ok.json`
 
@@ -201,7 +200,7 @@ The demo covers:
 
 ---
 
-## 🗺️ CLI Surface (Reference)
+##  CLI Surface 
 
 ```
 queuectl enqueue [JSON or --file <path>]
@@ -218,7 +217,7 @@ queuectl dlq retry <job_id>
 
 ```
 .
-/QueueCTL
+
 ├── queuectl.py
 ├── worker.py
 ├── database.py
@@ -236,7 +235,7 @@ queuectl dlq retry <job_id>
 
 ---
 
-## 🧠 Assumptions & Trade-offs
+##  Assumptions & Trade-offs
 
 * **Single-host, process-based workers**: Focused on assignment scope. For scale, move to a service manager (systemd/K8s) and a network DB (e.g., Postgres).
 * **SQLite + WAL-ready**: Durable enough for a demo; production systems may require stronger isolation/observability.
@@ -245,7 +244,7 @@ queuectl dlq retry <job_id>
 
 ---
 
-## 🌟 Bonus Ideas (Not required, easy to add)
+## 🌟 Bonus Ideas 
 
 * `timeout_seconds` per job (override default 30s)
 * Priority queues (already supported by schema extension)
@@ -255,13 +254,13 @@ queuectl dlq retry <job_id>
 
 ---
 
-## 🎬 Demo Video (exact line to include)
+## 🎬 Demo Video 
 
 `[Watch the demo](https://drive.google.com/file/d/1oA1Fr6zpjqKCWjWhx1oyVG-EX0qTBcZM/view?usp=sharing)`
 
 ---
 
-## 📌 Notes for Reviewers
+##  Notes for Reviewers
 
 * Core robustness hinges on the **atomic fetch** (transaction with `BEGIN IMMEDIATE`), which guarantees no duplicate consumption under multi-worker scenarios.
 * All lifecycle transitions are persisted; restarts do not lose state.
