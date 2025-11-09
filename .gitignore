@@ -34,6 +34,7 @@ Thumbs.db
 *.err
 
 # ===  Scripts ===
+
 inspect_jobs.py
 fix_states.py
 
@@ -48,3 +49,5 @@ job_fail.json
 build/
 dist/
 *.ps1
+
+scripts/
