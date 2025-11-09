@@ -218,15 +218,18 @@ queuectl dlq retry <job_id>
 
 ```
 .
-├─ queuectl.py          # CLI entrypoint (argparse subcommands)
-├─ worker.py            # Worker loop, atomic fetch, retry/DLQ logic
-├─ database.py          # DB helpers and schema init
-├─ demo.ps1             # End-to-end demo script (used in the video)
-├─ inspect_jobs.py      # Helper: prints full jobs table as JSON (debug)
-├─ fix_states.py        # Helper: normalizes legacy states to 'pending' (debug)
-├─ job_ok.json          # Sample success job
-├─ job_fail.json        # Sample failing job
-└─ README.md
+/QueueCTL
+├── queuectl.py
+├── worker.py
+├── database.py
+├── job_ok.json
+├── job_fail.json
+├── README.md
+├── scripts/
+│   ├── demo.ps1
+│   ├── inspect_jobs.py
+│   └── fix_states.py
+└── .gitignore
 ```
 
 
