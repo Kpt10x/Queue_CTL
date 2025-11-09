@@ -4,8 +4,8 @@ from datetime import datetime
 
 
 DB_PATH= Path("queue.db")
-def now_iso()-> str:
-    return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+def now_sql()-> str:
+    return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
 def get_connection():
     connection = sqlite3.connect(DB_PATH)
