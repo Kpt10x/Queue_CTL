@@ -1,9 +1,8 @@
 import argparse
-from concurrent.futures.thread import _worker
-import json,sys,sqlite3,time,math
-from datetime import datetime
+import json, sys, sqlite3
 from database import get_connection, init_database, now_sql
 from worker import run_worker
+
 def cmd_enqueue(args):
     #to parse the "job" argument as a JSON object
     # Resolve payload source: --file > positional > stdin
@@ -55,8 +54,6 @@ def cmd_list(args):
         else:
             rows=conn.execute("SELECT * FROM jobs ORDER BY created_at;").fetchall()
         
-        for row in rows:
-            print(dict(row))
     out=[dict(r) for r in rows]
     print(json.dumps(out, indent=2))
 
@@ -70,10 +67,11 @@ def build_parser():
     pe.set_defaults(func=cmd_enqueue)
     
     # in built worker command
-    pw= sub.add_parser("worker", help="Start a worker to process jobs")
-    pw_sub= pw.add_subparsers(dest="worker_command", required=True)
-    pws= pw_sub.add_parser("start", help="Start the worker (foreground)")
-    pws.set_defaults(func=lambda args: run_worker())
+    pw = sub.add_parser("worker", help="Worker operations")
+    pw.add_argument("action", choices=["start"])
+    pw.add_argument("--once", action="store_true", help="Process one job then exit")
+    pw.set_defaults(func=cmd_worker)
+
     
     #list command
     pl= sub.add_parser("list", help="List jobs in the queue")
@@ -82,8 +80,8 @@ def build_parser():
     
     return p
 
-def cmd_worker_start(args):
-    run_worker()
+def cmd_worker(args):
+    run_worker(once=args.once)
 
 def main():
     parser= build_parser()
