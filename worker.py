@@ -1,6 +1,7 @@
 # worker.py
-import sqlite3, subprocess, time, math
-
+import sqlite3, subprocess, time, math, signal
+from datetime import datetime
+STOP=False
 DB = "queue.db"
 BACKOFF_BASE_SECONDS = 3     
 COMMAND_TIMEOUT_SECONDS = 30 
@@ -77,31 +78,35 @@ def handle_job_failure(job_id: str, error_message: str):
         conn.commit()
         print(f"[worker] Job {job_id} retry scheduled in {int(delay)}s (attempt {new_attempts})")
 
-def run_worker(poll_interval_seconds: float = 1.0):
+def run_worker(once: bool = False):
     print("[worker] starting...")
-    while True:
-        job = fetch_next_job()
-        if not job:
-            time.sleep(poll_interval_seconds)
-            continue
-
-        jid = job["id"]
-        cmd = job["command"]
-        print(f"[worker] processing {jid}: {cmd}")
-
-        try:
-            result = subprocess.run(
-                cmd,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=COMMAND_TIMEOUT_SECONDS
-            )
-            if result.returncode == 0:
-                mark_job_completed(jid)
-                print(f"[worker] completed {jid}")
+    try:
+        while not STOP:
+            job = fetch_next_job()
+            if job:
+                print(f"[worker] processing {job['id']}: {job['command']}")
+                try:
+                    result = subprocess.run(
+                        job['command'],
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+                    if result.returncode == 0:
+                        mark_job_completed(job['id'])
+                        print(f"[worker] completed {job['id']}")
+                    else:
+                        handle_job_failure(job['id'], result.stderr or result.stdout or "non-zero exit")
+                except subprocess.TimeoutExpired:
+                    handle_job_failure(job['id'], "timeout")
+                    print(f"[worker] {job['id']} timed out")
+                if once:
+                    print("[worker] --once: exiting after one job")
+                    return
             else:
-                handle_job_failure(jid, result.stderr or result.stdout or f"exit={result.returncode}")
-        except subprocess.TimeoutExpired:
-            print(f"[worker] timeout {jid}")
-            handle_job_failure(jid, "timeout")
+                time.sleep(1.5)
+    except KeyboardInterrupt:
+        print("\n[worker] received Ctrl+C, exiting gracefully")
+    finally:
+        pass  # nothing to clean up for now
