@@ -128,7 +128,6 @@ Key protections:
 - `BEGIN IMMEDIATE` locks write access, preventing multiple workers from claiming the same job.
 - State updates occur in the same transaction as the job fetch.
 - Worker only selects jobs whose `next_run_at <= datetime('now')`.
-
 This ensures correctness even under multiple workers.
 
 ---
