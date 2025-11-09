@@ -229,7 +229,7 @@ queuectl dlq retry <job_id>
 └─ README.md
 ```
 
-> Include `demo.ps1` in the repo so reviewers can reproduce the exact flow. Do **not** ignore it.
+
 
 ---
 
