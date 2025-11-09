@@ -1,6 +1,5 @@
 {
-    "id": "job1",
-    "command": "sleep 2",
-    "max_retries": 3
-  }
-  
+  "id": "job_ok_1",
+  "command": "python -c \"print(42)\"",
+  "max_retries": 3
+}
