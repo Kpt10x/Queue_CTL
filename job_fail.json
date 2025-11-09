@@ -1,0 +1,6 @@
+{
+    "id": "job_fail",
+    "command": "cmd /c exit 1",
+    "max_retries": 3
+  }
+      
