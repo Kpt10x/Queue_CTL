@@ -2,8 +2,8 @@ import argparse
 from concurrent.futures.thread import _worker
 import json,sys,sqlite3,time,math
 from datetime import datetime
-from database import get_connection, init_database, now_iso
-
+from database import get_connection, init_database, now_sql
+from worker import run_worker
 def cmd_enqueue(args):
     #to parse the "job" argument as a JSON object
     # Resolve payload source: --file > positional > stdin
@@ -29,16 +29,19 @@ def cmd_enqueue(args):
     command= str(payload["command"])
     max_retries= int(payload.get("max_retries",3))
     
-    created=now_iso()
-    
+    created=now_sql()
+    next_run_at = created
     #inserting the job into the database
     init_database()
     try:
         with get_connection() as conn:
             conn.execute("""
-                INSERT INTO jobs (id, command, state, attempts, max_retries, created_at, updated_at, next_run_at)
-                VALUES (?, ?, 'queued', 0, ?, ?, ?, ?);
-            """, (job_id, command, max_retries, created, created, created))
+                INSERT INTO jobs (
+                    id, command, state, attempts, max_retries,
+                    created_at, updated_at, next_run_at
+                )
+                VALUES (?, ?, 'pending', 0, ?, DATETIME('now'), DATETIME('now'), DATETIME('now'));
+            """, (job_id, command, max_retries))
         print(f"Enqueued job {job_id}")
     except sqlite3.IntegrityError:
         raise SystemExit(f"Job with id {job_id} already exists.")
@@ -70,7 +73,7 @@ def build_parser():
     pw= sub.add_parser("worker", help="Start a worker to process jobs")
     pw_sub= pw.add_subparsers(dest="worker_command", required=True)
     pws= pw_sub.add_parser("start", help="Start the worker (foreground)")
-    pws.set_defaults(func=cmd_worker_start)
+    pws.set_defaults(func=lambda args: run_worker())
     
     #list command
     pl= sub.add_parser("list", help="List jobs in the queue")
@@ -88,4 +91,3 @@ def main():
     args.func(args)
 if __name__ == "__main__":
     main()
-    
