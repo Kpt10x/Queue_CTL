@@ -1,5 +1,0 @@
-{
-  "id": "job_ok_1",
-  "command": "python -c \"print(42)\"",
-  "max_retries": 3
-}

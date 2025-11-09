@@ -1,0 +1,47 @@
+# === Python Cache ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.egg-info/
+*.dist-info/
+
+# === Virtual Environments ===
+venv/
+env/
+.venv/
+
+# === SQLite / Local DB Files ===
+queue.db
+*.db
+*.sqlite
+*.sqlite3
+
+# === Editor / IDE Files ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === OS Files ===
+.DS_Store
+Thumbs.db
+
+# === Logs / Runtime Output ===
+*.log
+*.out
+*.err
+
+# ===  Scripts ===
+inspect_jobs.py
+fix_states.py
+
+# === Temporary Test Files ===
+job.json
+*.tmp
+*.bak
+
+# === Python Build Directories ===
+build/
+dist/
